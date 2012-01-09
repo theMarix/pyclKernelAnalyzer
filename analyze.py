@@ -27,7 +27,7 @@ class OutputWriter:
 
 	def __init__(self, csv):
 		self.csv = csv
-		print 'Device Version, Driver Version, Kernel Name, GPRs, Scratch Registers, Local Memory (Bytes)'
+		print 'Kernel Name, GPRs, Scratch Registers, Local Memory (Bytes), Device Version, Driver Version'
 
 
 	def writeLine(self, device, kernel, GPRs, scratchRegs, staticMem):
