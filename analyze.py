@@ -23,20 +23,6 @@ import optparse
 import os
 import re
 
-class OutputWriter:
-
-	def __init__(self, csv):
-		self.csv = csv
-		print 'Kernel Name, GPRs, Scratch Registers, Local Memory (Bytes), Device Version, Driver Version'
-
-
-	def writeLine(self, device, kernel, GPRs, scratchRegs, staticMem):
-		if self.csv:
-			format = '{1.function_name},{2},{3},{4},{0.version},{0.driver_version}'
-		else:
-			format = '{1.function_name}\t{2}\t{3}\t{4}\t{0.version}\t{0.driver_version}'
-		print format.format(device, kernel, GPRs, scratchRegs, staticMem)
-
 def file2string(filename):
 	f = open(filename, 'r')
 	fstr = ''.join(f.readlines())
@@ -52,8 +38,6 @@ if __name__ == '__main__':
 	if len(files) == 0:
 		print 'You must specify at least one source file!'
 		exit(-1)
-
-	writer = OutputWriter(args.csv)
 
 	# before initializing opencl make sure the AMD compiler will dump the source
 	os.environ['GPU_DUMP_DEVICE_KERNEL'] = '3'
@@ -82,6 +66,8 @@ if __name__ == '__main__':
 		# crude logic to find kernels, won't work in all cases
 		kernels = map(lambda name: getattr(prg, name), re.findall(r"^\s*__kernel\s+void\s+(\w+)\(", source, re.MULTILINE));
 
+	results = []
+
 	for kernel in kernels:
 		isaFileName = kernel.function_name + '_' + device.name + '.isa'
 
@@ -91,5 +77,22 @@ if __name__ == '__main__':
 		GPRs = int(re.search(r"^SQ_PGM_RESOURCES:NUM_GPRS\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE).group(1))
 		static = int(re.search(r"^SQ_LDS_ALLOC:SIZE\s*=\s*(0x\d*)\s*$", isaFile, re.MULTILINE).group(1), 0) * 4 # value in file is in units of floats
 
-		writer.writeLine(device, kernel, GPRs, scratchRegs, static)
+		results.append((device, kernel, GPRs, scratchRegs, static))
 
+
+
+	if args.csv:
+		print 'Kernel Name,GPRs,Scratch Registers,Local Memory (Bytes),Device Version,Driver Version'
+		format = '{0[1].function_name},{0[2]},{0[3]},{0[4]},{0[0].version},{0[0].driver_version}'
+	else:
+		maxNameLength = max(len('Kernel Name'), max(map(lambda x: len(x[1].function_name), results)))
+		maxVersionLength = max(len('Version'), max(map(lambda x: len(x[0].version), results)))
+		maxDriverLength = max(len('Driver Version'), max(map(lambda x: len(x[0].driver_version), results)))
+		header = '{0:<' + str(maxNameLength) + '}   GPRs   Scratch Registers   Local Memory (Bytes)   {1:<' + str(maxVersionLength) + '}   {2:<' + str(maxDriverLength) + '}'
+		header = header.format('Kernel Name', 'Version', 'Driver Version')
+		print header
+		print '{0:{fill}<{headerlen}}'.format('', fill='-', headerlen=len(header))
+		format = '{0[1].function_name:<' + str(maxNameLength) + '}   {0[2]:>4}   {0[3]:>17}   {0[4]:>20}   {0[0].version:<' + str(maxVersionLength) + '}   {0[0].driver_version:<' + str(maxDriverLength) + '}'
+
+	for line in results:
+		print format.format(line)
