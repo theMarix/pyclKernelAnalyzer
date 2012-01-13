@@ -32,6 +32,7 @@ if __name__ == '__main__':
 	parser = optparse.OptionParser(description='Figure out resource usage for all kernels in the given source files.', usage='analyze.py FILES...')
 	parser.add_option('-d', '--device', type=int, metavar='I', help='The device for which to compile the kernels')
 	parser.add_option('--csv', action='store_true', default=False, help='Output results as CSV')
+	parser.add_option('--no-header', action='store_true', default=False, help='Dont add column headers to csv output')
 	parser.add_option('-p', '--param', dest='build_options', action='append', default=[], help='Build options to be passed to the OpenCL compiler')
 
 	(args, files) = parser.parse_args()
@@ -83,7 +84,8 @@ if __name__ == '__main__':
 
 
 	if args.csv:
-		print 'Kernel Name,GPRs,Scratch Registers,Local Memory (Bytes),Device Version,Driver Version,Build Options'
+		if not args.no_header:
+			print 'Kernel Name,GPRs,Scratch Registers,Local Memory (Bytes),Device Version,Driver Version,Build Options'
 		format = '{0[1].function_name},{0[2]},{0[3]},{0[4]},{0[0].version},{0[0].driver_version},{1}'
 	else:
 		maxNameLength = max(len('Kernel Name'), max(map(lambda x: len(x[1].function_name), results)))
