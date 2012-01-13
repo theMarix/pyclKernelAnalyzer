@@ -32,6 +32,7 @@ if __name__ == '__main__':
 	parser = optparse.OptionParser(description='Figure out resource usage for all kernels in the given source files.', usage='analyze.py FILES...')
 	parser.add_option('-d', '--device', type=int, metavar='I', help='The device for which to compile the kernels')
 	parser.add_option('--csv', action='store_true', default=False, help='Output results as CSV')
+	parser.add_option('-p', '--param', dest='build_options', action='append', default=[], help='Build options to be passed to the OpenCL compiler')
 
 	(args, files) = parser.parse_args()
 
@@ -58,7 +59,7 @@ if __name__ == '__main__':
 	source = ''.join(map(file2string, files))
 
 	prg = cl.Program(ctx, source)
-	prg.build()
+	prg.build(args.build_options)
 
 	try:
 		kernels = prg.all_kernels()
@@ -82,12 +83,13 @@ if __name__ == '__main__':
 
 
 	if args.csv:
-		print 'Kernel Name,GPRs,Scratch Registers,Local Memory (Bytes),Device Version,Driver Version'
-		format = '{0[1].function_name},{0[2]},{0[3]},{0[4]},{0[0].version},{0[0].driver_version}'
+		print 'Kernel Name,GPRs,Scratch Registers,Local Memory (Bytes),Device Version,Driver Version,Build Options'
+		format = '{0[1].function_name},{0[2]},{0[3]},{0[4]},{0[0].version},{0[0].driver_version},{1}'
 	else:
 		maxNameLength = max(len('Kernel Name'), max(map(lambda x: len(x[1].function_name), results)))
 		maxVersionLength = max(len('Version'), max(map(lambda x: len(x[0].version), results)))
 		maxDriverLength = max(len('Driver Version'), max(map(lambda x: len(x[0].driver_version), results)))
+		# we don't print build options in usual output format as they just clutter up the screen
 		header = '{0:<' + str(maxNameLength) + '}   GPRs   Scratch Registers   Local Memory (Bytes)   {1:<' + str(maxVersionLength) + '}   {2:<' + str(maxDriverLength) + '}'
 		header = header.format('Kernel Name', 'Version', 'Driver Version')
 		print header
@@ -95,4 +97,4 @@ if __name__ == '__main__':
 		format = '{0[1].function_name:<' + str(maxNameLength) + '}   {0[2]:>4}   {0[3]:>17}   {0[4]:>20}   {0[0].version:<' + str(maxVersionLength) + '}   {0[0].driver_version:<' + str(maxDriverLength) + '}'
 
 	for line in results:
-		print format.format(line)
+		print format.format(line,' '.join(args.build_options))
