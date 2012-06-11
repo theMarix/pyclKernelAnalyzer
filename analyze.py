@@ -60,7 +60,7 @@ if __name__ == '__main__':
 	source = ''.join(map(file2string, files))
 
 	prg = cl.Program(ctx, source)
-	prg.build(args.build_options)
+	prg.build(args.build_options + ['-save-temps'])
 
 	try:
 		kernels = prg.all_kernels()
@@ -72,8 +72,12 @@ if __name__ == '__main__':
 
 	for kernel in kernels:
 		isaFileName = kernel.function_name + '_' + device.name + '.isa'
-
-		isaFile = file2string(isaFileName)
+		try:
+			isaFile = file2string(isaFileName)
+		except IOError: # probably catalyst 12.4 or up, try new naming scheme
+			from glob import glob
+			isaFileName = glob('_temp_*_{0}_{1}.isa'.format(device.name.lower(), kernel.function_name))[0]
+			isaFile = file2string(isaFileName)
 
 		scratchRegs = int(re.search(r"^MaxScratchRegsNeeded\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE).group(1))
 		GPRs = int(re.search(r"^SQ_PGM_RESOURCES:NUM_GPRS\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE).group(1))
