@@ -79,28 +79,38 @@ if __name__ == '__main__':
 			isaFileName = glob('_temp_*_{0}_{1}.isa'.format(device.name.lower(), kernel.function_name))[0]
 			isaFile = file2string(isaFileName)
 
-		scratchRegs = int(re.search(r"^MaxScratchRegsNeeded\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE).group(1))
-		GPRs = int(re.search(r"^SQ_PGM_RESOURCES:NUM_GPRS\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE).group(1))
-		static = int(re.search(r"^SQ_LDS_ALLOC:SIZE\s*=\s*(0x\d*)\s*$", isaFile, re.MULTILINE).group(1), 0) * 4 # value in file is in units of floats
+		scratchRegsMatch = re.search(r"^MaxScratchRegsNeeded\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE)
+		if scratchRegsMatch: # pre-tahiti gpu
+			scratchRegs = int(scratchRegsMatch.group(1))
+			GPRs = int(re.search(r"^SQ_PGM_RESOURCES:NUM_GPRS\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE).group(1))
+			static = int(re.search(r"^SQ_LDS_ALLOC:SIZE\s*=\s*(0x\d*)\s*$", isaFile, re.MULTILINE).group(1), 0) * 4 # value in file is in units of floats
 
-		results.append((device, kernel, GPRs, scratchRegs, static))
+			results.append((device, kernel, 0, GPRs, scratchRegs, static))
+		else:
+			scratchRegs = int(re.search(r"^ScratchSize\s*=\s*(\d*)\s*;\s*$", isaFile, re.MULTILINE).group(1))
+			sGPRs = int(re.search(r"^NumSgprs\s*=\s*(\d*)\s*;\s*$", isaFile, re.MULTILINE).group(1))
+			vGPRs = int(re.search(r"^NumVgprs\s*=\s*(\d*)\s*;\s*$", isaFile, re.MULTILINE).group(1))
+			staticMatch = re.search(r"^COMPUTE_PGM_RSRC2:LDS_SIZE\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE)
+			static = int(staticMatch.group(1) if staticMatch else 0) * 4 * 64 # value in file is in units of 64 floats
+
+			results.append((device, kernel, sGPRs, vGPRs, scratchRegs, static))
 
 
 
 	if args.csv:
 		if not args.no_header:
-			print 'Kernel Name,GPRs,Scratch Registers,Local Memory (Bytes),Device Version,Driver Version,Build Options'
-		format = '{0[1].function_name},{0[2]},{0[3]},{0[4]},{0[0].version},{0[0].driver_version},{1}'
+			print 'Kernel Name,sGPRs, vGPRs,Scratch Registers,Local Memory (Bytes),Device Version,Driver Version,Platform Version,Build Options'
+		format = '{0[1].function_name},{0[2]},{0[3]},{0[4]},{0[5]},{0[0].version},{0[0].driver_version},{1}'
 	else:
 		maxNameLength = max(len('Kernel Name'), max(map(lambda x: len(x[1].function_name), results)))
 		maxVersionLength = max(len('Version'), max(map(lambda x: len(x[0].version), results)))
 		maxDriverLength = max(len('Driver Version'), max(map(lambda x: len(x[0].driver_version), results)))
 		# we don't print build options in usual output format as they just clutter up the screen
-		header = '{0:<' + str(maxNameLength) + '}   GPRs   Scratch Registers   Local Memory (Bytes)   {1:<' + str(maxVersionLength) + '}   {2:<' + str(maxDriverLength) + '}'
+		header = '{0:<' + str(maxNameLength) + '}   sGPRs   vGPRs   Scratch Registers   Local Memory (Bytes)   {1:<' + str(maxVersionLength) + '}   {2:<' + str(maxDriverLength) + '}'
 		header = header.format('Kernel Name', 'Version', 'Driver Version')
 		print header
 		print '{0:{fill}<{headerlen}}'.format('', fill='-', headerlen=len(header))
-		format = '{0[1].function_name:<' + str(maxNameLength) + '}   {0[2]:>4}   {0[3]:>17}   {0[4]:>20}   {0[0].version:<' + str(maxVersionLength) + '}   {0[0].driver_version:<' + str(maxDriverLength) + '}'
+		format = '{0[1].function_name:<' + str(maxNameLength) + '}   {0[2]:>5}   {0[3]:>5}   {0[4]:>17}   {0[5]:>20}   {0[0].version:<' + str(maxVersionLength) + '}   {0[0].driver_version:<' + str(maxDriverLength) + '}'
 
 	for line in results:
 		print format.format(line,' '.join(args.build_options))
