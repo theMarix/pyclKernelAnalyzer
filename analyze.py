@@ -79,6 +79,8 @@ if __name__ == '__main__':
 			isaFileNames = glob('_temp_*_{0}_{1}.isa'.format(device.name.lower(), kernel.function_name))
 			if len(isaFileNames) < 1:
 				isaFileNames = glob('_temp_*_{0}_main.isa'.format(device.name))
+			if len(isaFileNames) < 1:
+				isaFileNames = glob('_temp_*_{0}_{1}.isa'.format(device.name, kernel.function_name))
 			isaFile = file2string(isaFileNames[0])
 
 		scratchRegsMatch = re.search(r"^MaxScratchRegsNeeded\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE)
@@ -89,7 +91,7 @@ if __name__ == '__main__':
 
 			results.append((device, kernel, 0, GPRs, scratchRegs, static))
 		else:
-			scratchRegs = int(re.search(r"^ScratchSize\s*=\s*(\d*)\s*;\s*$", isaFile, re.MULTILINE).group(1))
+			scratchRegs = int(re.search(r"^ScratchSize\s*=\s*(\d*)\s*", isaFile, re.MULTILINE).group(1))
 			sGPRs = int(re.search(r"^NumSgprs\s*=\s*(\d*)\s*;\s*$", isaFile, re.MULTILINE).group(1))
 			vGPRs = int(re.search(r"^NumVgprs\s*=\s*(\d*)\s*;\s*$", isaFile, re.MULTILINE).group(1))
 			staticMatch = re.search(r"^COMPUTE_PGM_RSRC2:LDS_SIZE\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE)
