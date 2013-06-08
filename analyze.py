@@ -76,8 +76,10 @@ if __name__ == '__main__':
 			isaFile = file2string(isaFileName)
 		except IOError: # probably catalyst 12.4 or up, try new naming scheme
 			from glob import glob
-			isaFileName = glob('_temp_*_{0}_{1}.isa'.format(device.name.lower(), kernel.function_name))[0]
-			isaFile = file2string(isaFileName)
+			isaFileNames = glob('_temp_*_{0}_{1}.isa'.format(device.name.lower(), kernel.function_name))
+			if len(isaFileNames) < 1:
+				isaFileNames = glob('_temp_*_{0}_main.isa'.format(device.name))
+			isaFile = file2string(isaFileNames[0])
 
 		scratchRegsMatch = re.search(r"^MaxScratchRegsNeeded\s*=\s*(\d*)\s*$", isaFile, re.MULTILINE)
 		if scratchRegsMatch: # pre-tahiti gpu
